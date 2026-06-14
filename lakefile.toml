@@ -1,0 +1,10 @@
+name = "smira-lean"
+version = "0.1.0"
+defaultTargets = ["smira-lean"]
+
+[[lean_lib]]
+name = "SmiraLean"
+
+[[lean_exe]]
+name = "smira-lean"
+root = "Main"
