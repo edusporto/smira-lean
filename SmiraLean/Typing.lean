@@ -3,7 +3,9 @@ import SmiraLean.Semantics
 
 namespace Smira
 
-/-- Types in the register allocator. -/
+/--
+  Types in the register allocator.
+-/
 inductive Ty where
   /-- Type of the bullet `blt` operand. -/
   | const : Ty
@@ -16,7 +18,7 @@ inductive Ty where
 abbrev TypeEnv := List Ty
 
 /--
-  Code heap type (Ψ).
+  Program (code heap) type (Ψ).
 -/
 abbrev TypeHeap := List TypeEnv
 
@@ -25,17 +27,13 @@ abbrev TypeHeap := List TypeEnv
 -/
 inductive Sub : TypeEnv → TypeEnv → Prop where
   | empbk : Sub [] []
-  /--
-    If the target block expects `psd 0` (uninitialized/dead),
-    the current block can safely provide any pseudo `pₙ`.
-  -/
+  /-- If the target block expects `psd 0` (uninitialized/dead),
+      the current block can safely provide any pseudo `pₙ`. -/
   | rzero : ∀ {n Γ Γ'},
       Sub Γ Γ' →
       Sub (Ty.psd n :: Γ) (Ty.psd 0 :: Γ')
-  /--
-    If the target expects a live pseudo (succ n),
-    we must provide that live pseudo.
-  -/
+  /-- If the target expects a live pseudo (succ n),
+      we must provide that live pseudo. -/
   | rnotz : ∀ {n Γ Γ'},
       Sub Γ Γ' →
       Sub (Ty.psd (Nat.succ n) :: Γ) (Ty.psd (Nat.succ n) :: Γ')
@@ -44,9 +42,9 @@ inductive Sub : TypeEnv → TypeEnv → Prop where
 infix:50 " ⊑ " => Sub
 
 /--
-  Types of operands of instructions.
+  Type judgement of operands.
 
-  `TyOP G O T` means operand `O` has type `T` in environment `G`.
+  `TyOP Γ O T` means operand `O` has type `T` in environment `Γ`.
 -/
 inductive TyOp : TypeEnv → Operand → Ty → Prop where
   | gab : ∀ {Γ}, TyOp Γ Operand.blt Ty.const
@@ -56,19 +54,19 @@ inductive TyOp : TypeEnv → Operand → Ty → Prop where
       TyOp Γ (Operand.reg rₙ pₙ) (Ty.psd pₙ)
 
 -- Operand typing notation
-notation:50 Γ " ⊢ₒ " o " : " T => TyOp Γ o T
+notation:50 Γ " ⊢ₚ " o " : " τ => TyOp Γ o τ
 
 /--
-  Types of instructions.
+  Type judgement of instructions.
 -/
 inductive TyInst : TypeHeap → TypeEnv → Inst → TypeEnv → Prop where
-  | mov : ∀ {Ψ Γ₀ Γ₁ rₙ pₙ o Tₒ pOld},
-      (Γ₀ ⊢ₒ o : Tₒ) →
+  | mov : ∀ {Ψ Γ₀ Γ₁ rₙ pₙ o τ pOld},
+      (Γ₀ ⊢ₚ o : τ) →
       NotZero pₙ →
       Update Γ₀ (Ty.psd pₙ) rₙ Γ₁ pOld →
       TyInst Ψ Γ₀ (Inst.mov (Operand.reg rₙ pₙ) o) Γ₁
   | cnd : ∀ {Ψ Γ Γ' rₙ pₙ lbl Tₒ},
-      (Γ ⊢ₒ (Operand.reg rₙ pₙ) : Tₒ) →
+      (Γ ⊢ₚ (Operand.reg rₙ pₙ) : Tₒ) →
       Proj Ψ lbl.id Γ' →
       (Γ ⊑ Γ') →
       TyInst Ψ Γ (Inst.cnd (Operand.reg rₙ pₙ) lbl) Γ
@@ -78,22 +76,22 @@ inductive TyInst : TypeHeap → TypeEnv → Inst → TypeEnv → Prop where
 notation:50 Ψ " ⊢ᵢ " inst " : " Γ₀ " ↦ " Γ₁ => TyInst Ψ Γ₀ inst Γ₁
 
 /--
-  Types of basic blocks.
+  Type judgement of basic blocks.
 -/
 inductive TyBlock : TypeHeap → TypeEnv → BasicBlock → Prop where
-  | cons : ∀ {Ψ Γ Γ' inst I},
-      (Ψ ⊢ᵢ inst : Γ ↦ Γ') →
+  | cons : ∀ {Ψ Γ Γ' i I},
+      (Ψ ⊢ᵢ i : Γ ↦ Γ') →
       TyBlock Ψ Γ' I →
-      TyBlock Ψ Γ (BasicBlock.cons inst I)
+      TyBlock Ψ Γ (BasicBlock.cons i I)
   | jump : ∀ {Ψ Γ Γ' lbl},
       Proj Ψ lbl.id Γ' →
       (Γ ⊑ Γ') →
       TyBlock Ψ Γ (BasicBlock.jump lbl)
 
-notation:50 Ψ " ⊢ₛ " block " : " Γ => TyBlock Ψ Γ block
+notation:50 Ψ " ⊢ₛ " I " : " Γ => TyBlock Ψ Γ I
 
 /--
-  Type of the register bank.
+  Type judgement of the register bank.
 
   `TyRegBank R Γ` proves that the physical register `R` matches the layout
   of the type environment `Γ`.
@@ -108,7 +106,7 @@ inductive TyRegBank : RegisterBank → TypeEnv → Prop where
 notation:50 "⊢ᵣ " R " : " Γ => TyRegBank R Γ
 
 /--
-  Auxiliary lemma for the Code Heap type.
+  Auxiliary lemma for the code heap type judgement.
 
   Iterates through the `Program` (C) and a local `TypeHeap` (Ψ'), ensuring
   that every block type-checks against the global `TypeHeap` (Ψ).
@@ -123,7 +121,7 @@ inductive TyCodeHeapAux : TypeHeap → Program → TypeHeap → Prop where
       TyCodeHeapAux Ψ C Ψ' →
       TyCodeHeapAux Ψ (I :: C) (Γ :: Ψ')
 
-/-- Type of the code heap `C`. -/
+/-- Type judgement of the program (code heap). -/
 inductive TyCodeHeap : TypeHeap → Program → Prop where
   | mk : ∀ {Ψ C},
       TyCodeHeapAux Ψ C Ψ →
@@ -132,7 +130,7 @@ inductive TyCodeHeap : TypeHeap → Program → Prop where
 notation:50 "⊢ₕ " C " : " Ψ => TyCodeHeap Ψ C
 
 /--
-  Type of a machine state.
+  Type judgement of the machine state.
 
   Takes the immutable Code Heap `C` and the mutable `State`.
 -/

@@ -8,8 +8,8 @@ inductive Operand where
   /--
     Pre-colored register.
 
-    Represents a pair `(r, p)`, where `r` is a position in the register bank,
-    and `p` is the pseudo stored in that position.
+    Represents a pair `(rₙ, pₙ)`, where `rₙ` is a position in the register bank,
+    and `pₙ` is the pseudo stored in that position.
   -/
   | reg : Nat → Nat → Operand
 
@@ -37,9 +37,9 @@ inductive BasicBlock where
   | jump : Label → BasicBlock
 
 /--
-  The Code Heap (C), or the program.
+  The code heap (C), or the program.
 
-  It is basically a lookup table where index `i` represents the label `i`. -/
+  It is essentially a lookup table where index `i` represents the label `i`. -/
 abbrev Program := List BasicBlock
 
 /-- Register bank R. -/

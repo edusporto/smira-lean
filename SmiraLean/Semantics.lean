@@ -23,6 +23,8 @@ inductive Proj {α : Type} : List α → Nat → α → Prop where
 
 /--
   List update.
+  `Update xs x' n xs' x` means that the resulting of updating the `n`-th element
+  in `xs` yields `xs'`, where `x` is the old value.
   (Twelf's `update_exp` relation).
 -/
 inductive Update {α : Type} : List α → α → Nat → List α → α → Prop where
@@ -34,17 +36,17 @@ inductive Update {α : Type} : List α → α → Nat → List α → α → Pro
 
 inductive Eval : RegisterBank → Operand → Operand → Prop where
   /-- Evaluating a bullet just yields a bullet. -/
-  | blt : ∀ {rb}, Eval rb Operand.blt Operand.blt
+  | blt : ∀ {R}, Eval R Operand.blt Operand.blt
   /--
     Evaluating a physical register `(reg rₙ pₙ)` yields the pseudo `(psd pₙ)`,
-    provided that projecting index `rₙ` out of the bank `rb` yields `(psd pₙ)`,
+    provided that projecting index `rₙ` out of the bank `R` yields `(psd pₙ)`,
     and the pseudo ID `pₙ` is strictly greater than zero.
   -/
-  | reg : ∀ {rb rₙ pₙ},
-      Proj rb rₙ (Operand.psd pₙ) →
+  | reg : ∀ {R rₙ pₙ},
+      Proj R rₙ (Operand.psd pₙ) →
       -- `pₙ = 0` represents the non-initialized registers ⊥
       NotZero pₙ →
-      Eval rb (Operand.reg rₙ pₙ) (Operand.psd pₙ)
+      Eval R (Operand.reg rₙ pₙ) (Operand.psd pₙ)
 
 /--
   Small-step operational semantics for sMIRA.
