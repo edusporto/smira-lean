@@ -187,10 +187,15 @@ theorem jmpLemma {Ψ : TypeHeap} {C : Program} {n : Nat} {Γ : TypeEnv}
   If a machine state is well-typed, it can always take at least one valid
   execution step. Note that there is no termination in sMIRA.
 -/
-theorem progress {C : Program} {R : RegisterBank} {I : BasicBlock}
-    (hTy : ⊢ₘ ⟨C, (I, R)⟩) :
-    ∃ s', C ⊢ (I, R) ⇒ s' := by
+-- theorem progress {C : Program} {R : RegisterBank} {I : BasicBlock}
+--     (hTy : ⊢ₘ ⟨C, (I, R)⟩) :
+--     ∃ s', C ⊢ (I, R) ⇒ s' := by
+
+theorem progress {C : Program} {s : State}
+    (hTy : ⊢ₘ ⟨C, s⟩) :
+    ∃ s', C ⊢ s ⇒ s' := by
   have ⟨h_code, h_reg, h_blk, h_sub⟩ := hTy
+  have ⟨I, R⟩ := s
   cases h_blk with
   | jump h_proj_Ψ _ =>
     -- Unconditional `jmp` to a label.
