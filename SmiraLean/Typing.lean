@@ -27,8 +27,8 @@ abbrev TypeHeap := List TypeEnv
 -/
 inductive Sub : TypeEnv → TypeEnv → Prop where
   | empbk : Sub [] []
-  /-- If the target block expects `psd 0` (uninitialized/dead),
-      the current block can safely provide any pseudo `pₙ`. -/
+  /-- If the target block expects `psd 0` (uninitialized/dead state ⊥),
+      the current block can safely provide any live pseudo `pₙ` or ⊥. -/
   | rzero : ∀ {n Γ Γ'},
       Sub Γ Γ' →
       Sub (Ty.psd n :: Γ) (Ty.psd 0 :: Γ')

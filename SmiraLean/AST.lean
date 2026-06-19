@@ -3,7 +3,9 @@ namespace Smira
 inductive Operand where
   /-- Pseudo-register (variable). -/
   | psd : Nat → Operand
-  /-- Bullet, which has no effect in the allocation process. -/
+  /-- Bullet (•).
+      Abstracts operands not relevant to register allocation,
+      such as constants or heap memory addresses. -/
   | blt : Operand
   /--
     Pre-colored register.

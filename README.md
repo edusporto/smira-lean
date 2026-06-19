@@ -4,6 +4,10 @@ Proofs of type soundness (progress and preservation) of the Simple MIRA language
 
 This project translates the original mechanized proofs written in Twelf (available [here](http://compilers.cs.ucla.edu/ralf/twelf/)) into Lean 4. The current implementation is an almost 1:1 translation of the original Twelf logic.
 
+## Report
+
+See [the `report.pdf` file in the repository](./report.pdf) for a report on the project, including information on the original proofs and on the structure of the translations.
+
 ## Checking proofs
 
 This project requires an installation of [Lean 4](https://lean-lang.org/install/).
