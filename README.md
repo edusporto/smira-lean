@@ -6,7 +6,7 @@ This project translates the original mechanized proofs written in Twelf (availab
 
 ## Report
 
-See [the `report.pdf` file in the repository](./report.pdf) for a report on the project, including information on the original proofs and on the structure of the translations.
+See the [`report.pdf`](./report.pdf) file in the repository for a report on the project, including information on the original proofs and on the structure of the translations.
 
 ## Checking proofs
 
