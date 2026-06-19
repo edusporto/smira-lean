@@ -1,0 +1,419 @@
+%&pdflatex
+% Packages & Document Configurations
+% \runninghead{Shortened Running Article Title}
+% \footertext{\textit{Journal X} (2023) 12:684}
+
+% \documentclass{NobArticle}
+\documentclass[]{NobArticle}
+\runninghead{Type Soundness of the Simple MIRA Language}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta} % Add this for better arrow control
+\usepackage{setspace}
+\singlespacing
+\usepackage{float}
+\usepackage{tabularx}
+
+\usepackage{listings}
+% \usepackage{color}
+\definecolor{keywordcolor}{rgb}{0.7, 0.1, 0.1}   % red
+\definecolor{tacticcolor}{rgb}{0.0, 0.1, 0.6}    % blue
+\definecolor{commentcolor}{rgb}{0.4, 0.4, 0.4}   % grey
+\definecolor{symbolcolor}{rgb}{0.0, 0.1, 0.6}    % blue
+\definecolor{sortcolor}{rgb}{0.1, 0.5, 0.1}      % green
+\definecolor{attributecolor}{rgb}{0.7, 0.1, 0.1} % red
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\def\lstlanguagefiles{lstlean.tex}
+% Set default lstlisting language
+\lstset{
+  language=lean,
+  basicstyle=\ttfamily\footnotesize
+}
+
+% Definitions
+\DeclareMathSymbol{\dv}{\mathord}{operators}{"3A}
+
+% Title
+\title{Reproducibility of Published Results:\\
+Type Soundness of the Simple MIRA Language}
+
+% Authors
+\author{
+    Eduardo Sandalo Porto
+}
+
+% Affiliations
+% \date{}
+\date{
+    Department of Computer Science, Federal University of Minas Gerais.
+}
+
+% Abstract
+% \renewcommand{\maketitlehookd}{%
+% \begin{abstract}
+%     \noindent Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent porttitor arcu luctus, imperdiet urna iaculis, mattis eros. Pellentesque iaculis odio vel nisl ullamcorper, nec faucibus ipsum molestie. Sed dictum nisl non aliquet porttitor. Etiam vulputate arcu dignissim, finibus sem et, viverra nisl. Aenean luctus congue massa, ut laoreet metus ornare in. Nunc fermentum nisi imperdiet lectus tincidunt vestibulum at ac elit. Nulla mattis nisl eu malesuada suscipit. Aliquam arcu turpis, ultrices sed luctus ac, vehicula id metus. Morbi eu feugiat velit, et tempus augue. Proin ac mattis tortor. Donec tincidunt, ante rhoncus luctus semper, arcu lorem lobortis justo, nec convallis ante quam quis lectus. Aenean tincidunt sodales massa, et hendrerit tellus mattis ac. Sed non pretium nibh. Donec cursus maximus luctus. Vivamus lobortis eros et massa porta porttitor.
+    
+%     \medskip
+
+%     \small{\textbf{Index Terms:} Keyword A, Keyword B, Keyword C.}
+% \end{abstract}
+% }
+
+\begin{document}
+
+\small
+\maketitle
+
+\section{Introduction}
+
+This report discusses the results of reproducing the artifact of the paper \textit{A Framework for End-to-End Verification and Evaluation of Register Allocators} \cite{nandivada_framework_2007}, presented at the Fourteenth International Static Analysis Symposium (SAS 2007).
+
+The paper presents a framework for designing, verifying, and evaluating register allocation algorithms. Specifically, it presents the MIRA and FORD languages, which, respectively, describe programs prior to register allocation, and describe the results produced by the register allocation. It also discusses RALF, which allows register allocator integration with GCC. To verify the correctness of MIRA and FORD, the paper defines the Simple MIRA (sMIRA) and Simple FORD (sFORD) languages, defines an operational semantics and a type system for FORD, and states the soundness theorems for this type system with respect to the semantics.
+
+The proofs for these theorems are available in an artifact, written in Twelf \cite{pfenning_system_1999}. The original artifact can be found at \url{http://compilers.cs.ucla.edu/ralf/twelf/}. The goal of this report is to evaluate these proofs, and translate them to the Lean 4 proof assistant \cite{moura_lean_2021}. The translated proofs are available in a \texttt{git} repository at \url{https://github.com/edusporto/smira-lean}.
+
+\section{Artifact}
+
+I was able to download each of the individual proof files from the website available at the previously mentioned URL. I was not able to download the \texttt{zip} file that aggregated the rest, so there could be information missing. I managed to build the Twelf prover from the instructions found at \url{https://twelf.org/download/}. Adding a \texttt{sources.cfg} file listing the artifact files (\texttt{arith.elf}, \texttt{list.elf}, \texttt{os\_smira.elf}, \texttt{tp\_smira.elf}, \texttt{sub.thm}, \texttt{smira.thm}), I was able to successfully check the proofs using \texttt{twelf-server} and running \texttt{make sources.cfg}. Each file contains the following:
+\begin{itemize}
+  \item \verb|arith.elf|: Definition for natural numbers.
+  \item \verb|list.elf|: Definition for linked lists (\verb|exps|) over the expressions (\verb|exp|).
+  \item \verb|os_smira.elf|: A small-step operational semantics for the languages.
+  \item \verb|tp_smira.elf|: A type system for the languages.
+  \item \verb|sub.thm|: Proofs about the subtyping relation of the type system.
+  \item \verb|smira.thm|: The main proofs of \textit{progress} and \textit{preservation} for the type system, which together imply soundness.
+\end{itemize}
+
+Note that the definitions and theorems are both about the sMIRA and the sFORD languages, although the file names only include sMIRA. The type system's goal is to guarantee that the values used in the sMIRA program are preserved in the sFORD representation. Thus, the syntax allows \textit{pseudo-registers}, which are only available in sMIRA, but the typing rule for the \verb|mov| instruction forces the left operand to be a \textit{physical register}, which is a characteristic of sFORD. There are a few components described in the paper missing, such as the \verb|call|, \verb|load|, \verb|store| operators and the data heap $\Delta$. Nonetheless, the definitions and proofs seem to be correct for the subset they represent.
+
+\section{Reproducibility}
+
+The goal of this effort was to translate the proofs to Lean 4, keeping proofs and definitions similar to the original Twelf code while also utilizing a few of Lean's capabilities. We divide the translation into five parts: the definition of the abstract-syntax tree (AST), the operational semantics, the typing rules, the subtyping relation rules, and the final soundness proofs. Before that, we mention a detail which comes from the Twelf proofs. Although Lean includes natural numbers and linked lists whose definitions are similar to Twelf's, we added three inductive predicates to make the translation of proofs easier: \lstinline|NotZero|, \lstinline|Proj|, \lstinline|Update|. There are other ways to encode these relations in Lean, but changing them would diverge the structure of Lean's and Twelf's proofs.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Ensures a natural number is strictly greater than zero.
+    (Twelf's `not_zero` relation). -/
+inductive NotZero : Nat → Prop where [...]
+
+/-- List projection.
+    `Proj xs n x` means the `n`-th element of list `xs` is `x`.
+    (Twelf's `proj_exp` relation). -/
+inductive Proj {α : Type} : List α → Nat → α → Prop where [...]
+
+/-- List update.
+    `Update xs x' n xs' x` means that the resulting of updating the `n`-th element
+    in `xs` yields `xs'`, where `x` is the old value.
+    (Twelf's `update_exp` relation). -/
+inductive Update {α : Type} : List α → α → Nat → List α → α → Prop where [...]
+\end{lstlisting}
+\end{minipage}
+
+Since lists in Lean are polymorphic, we don't need to define specific lists of expressions as in Twelf.
+
+\subsection{AST}
+
+The AST of sMIRA contains operands, labels, instructions, sequences of instructions, and a code heap (program). Its metatheory includes register banks and states.
+
+The operands are pseudo-registers, which represent variables; bullets, which don't affect the allocation process; and physical registers.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+inductive Operand where
+  /-- Pseudo-register (variable). -/
+  | psd : Nat → Operand
+  /-- Bullet, which has no effect in the allocation process. -/
+  | blt : Operand
+  /-- Pre-colored register.
+      Represents a pair `(rₙ, pₙ)`, where `rₙ` is a position in the register bank,
+      and `pₙ` is the pseudo stored in that position. -/
+  | reg : Nat → Nat → Operand
+\end{lstlisting}
+\end{minipage}
+
+We define sequences of instructions as \textit{basic blocks}, although that term is imprecise in this context. We do it to group lists of instructions with an unconditional jump, representing the end of the block. This is the only departure from the Twelf code, which represented jumps as a normal instruction. The other instructions represented are moves and conditional jumps. A label is simply an index in an instruction list. The program (code heap) is a list of basic blocks.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Label of a basic block.
+    A program is a list of blocks, whose label is its index in the instruction list. -/
+structure Label where
+  id : Nat
+
+/-- Program instruction (i). -/
+inductive Inst where
+  | mov : Operand → Operand → Inst
+  | cnd : Operand → Label → Inst
+
+/-- A basic block of instructions (I). -/
+inductive BasicBlock where
+  | cons : Inst → BasicBlock → BasicBlock
+  | jump : Label → BasicBlock
+
+/-- The code heap (C), or the program.
+    It is essentially a lookup table where index `j` represents the label `j`. -/
+abbrev Program := List BasicBlock
+\end{lstlisting}
+\end{minipage}
+
+Finally, the register bank represents the allocation of registers, and the state of a program is the current basic block with the current register bank.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Register bank (R). -/
+abbrev RegisterBank := List Operand
+
+/-- The mutable execution state: the current basic block (I) and the register bank (R). -/
+abbrev State := BasicBlock × RegisterBank
+\end{lstlisting}
+\end{minipage}
+
+\subsection{Operational semantics}
+
+Based on the evaluation of operands, we define the small-step operational semantics representing the state transitions triggered by the execution of each instruction:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+inductive Eval : RegisterBank → Operand → Operand → Prop where
+  /-- Evaluating a bullet just yields a bullet. -/
+  | blt : ∀ {R}, Eval R Operand.blt Operand.blt
+  /-- Evaluating a physical register `(reg rₙ pₙ)` yields the pseudo `(psd pₙ)`, provided that projecting
+    index `rₙ` out of the bank `R` yields `(psd pₙ)`, and the pseudo ID `pₙ` is strictly greater than zero (i.e., it is not in the uninitialized state). -/
+  | reg : ∀ {R rₙ pₙ},
+      Proj R rₙ (Operand.psd pₙ) →
+      -- `pₙ = 0` represents the non-initialized registers ⊥
+      NotZero pₙ →
+      Eval R (Operand.reg rₙ pₙ) (Operand.psd pₙ)
+
+/-- Small-step operational semantics for a given program C. -/
+inductive Step (C : Program) : State → State → Prop where
+  | mov : ∀ {R rₙ pₙ o I R' v oOld},
+      Eval R o v →
+      Update R (Operand.psd pₙ) rₙ R' oOld →
+      Step C
+        (BasicBlock.cons (Inst.mov (Operand.reg rₙ pₙ) o) I, R)
+        (I, R')
+  | jmp : ∀ {R lbl I'},
+      Proj C lbl.id I' →
+      Step C
+        (BasicBlock.jump lbl, R)
+        (I', R)
+  | jeq : ∀ {R rₙ pₙ lbl I v},
+      Eval R (Operand.reg rₙ pₙ) v →
+      Step C
+        (BasicBlock.cons (Inst.cnd (Operand.reg rₙ pₙ) lbl) I, R)
+        (I, R)
+  | jne : ∀ {R rₙ pₙ lbl I I' v},
+      Eval R (Operand.reg rₙ pₙ) v →
+      Proj C lbl.id I' →
+      Step C
+        (BasicBlock.cons (Inst.cnd (Operand.reg rₙ pₙ) lbl) I, R)
+        (I', R)
+\end{lstlisting}
+\end{minipage}
+
+Lean allows us to easily define user-provided notation. We define the following notation for small-step operational semantics, stepping from state $s_1$ to $s_2$ given program $C$:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+-- Small-step notation: C ⊢ s₁ ⇒ s₂
+notation C " ⊢ " s₁ " ⇒ " s₂ => Step C s₁ s₂
+\end{lstlisting}
+\end{minipage}
+
+\subsection{Type system}
+
+First, we define the possible types of operands in the register allocator. We use them to define the type environment $\Gamma$, which represents the shape of the register bank, then use $\Gamma$ to define the program type, which maps labels to their expected entry environments.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Types in the register allocator. -/
+inductive Ty where
+  /-- Type of the bullet `blt` operand. -/
+  | const : Ty
+  /-- Type of a register holding a pseudo `pₙ`. -/
+  | psd : Nat → Ty
+
+/-- Register type environment (Γ). -/
+abbrev TypeEnv := List Ty
+
+/-- Program (code heap) type (Ψ). -/
+abbrev TypeHeap := List TypeEnv
+\end{lstlisting}
+\end{minipage}
+
+The type system depends on the notion of \textit{environment subtyping}. We say that $\Gamma \sqsubseteq \Gamma'$ if and only if every live pseudo-variable required by the target environment $\Gamma'$ is exactly matched by the source environment $\Gamma$, while registers considered dead by $\Gamma'$ place no restrictions on $\Gamma$. This is useful for the typing of branching instructions, showing that the target environment of a jump will be valid according to the original environment.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- `Sub Γ Γ'` means environment `Γ` is a valid subtype of `Γ'`. -/
+inductive Sub : TypeEnv → TypeEnv → Prop where
+  | empbk : Sub [] []
+  /-- If the target block expects `psd 0` (uninitialized/dead), the current block can safely provide
+      any pseudo `pₙ`. -/
+  | rzero : ∀ {n Γ Γ'},
+      Sub Γ Γ' →
+      Sub (Ty.psd n :: Γ) (Ty.psd 0 :: Γ')
+  /-- If the target expects a live pseudo (succ n), we must provide that live pseudo. -/
+  | rnotz : ∀ {n Γ Γ'},
+      Sub Γ Γ' →
+      Sub (Ty.psd (Nat.succ n) :: Γ) (Ty.psd (Nat.succ n) :: Γ')  
+\end{lstlisting}
+\end{minipage}
+
+We then define the typing rules (or \textit{judgements}) that construct the types of the system. To avoid extending the report, we merely show the typing rules without going into further detail. We define custom syntax for each typing rule to closely resemble the paper. Note that we use subscripts to differentiate the judgements---Lean is also able to define ambiguous notation, which would be solved via type inference.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Type judgement of operands. -/
+inductive TyOp : TypeEnv → Operand → Ty → Prop where
+  | gab : ∀ {Γ}, TyOp Γ Operand.blt Ty.const
+  | reg : ∀ {Γ rₙ pₙ},
+      Proj Γ rₙ (Ty.psd pₙ) →
+      NotZero pₙ →
+      TyOp Γ (Operand.reg rₙ pₙ) (Ty.psd pₙ)
+notation:50 Γ " ⊢ₚ " o " : " τ => TyOp Γ o τ
+
+/-- Type judgement of instructions. -/
+inductive TyInst : TypeHeap → TypeEnv → Inst → TypeEnv → Prop where
+  | mov : ∀ {Ψ Γ₀ Γ₁ rₙ pₙ o τ pOld},
+      (Γ₀ ⊢ₚ o : τ) →
+      NotZero pₙ →
+      Update Γ₀ (Ty.psd pₙ) rₙ Γ₁ pOld →
+      TyInst Ψ Γ₀ (Inst.mov (Operand.reg rₙ pₙ) o) Γ₁
+  | cnd : ∀ {Ψ Γ Γ' rₙ pₙ lbl Tₒ},
+      (Γ ⊢ₚ (Operand.reg rₙ pₙ) : Tₒ) →
+      Proj Ψ lbl.id Γ' →
+      (Γ ⊑ Γ') →
+      TyInst Ψ Γ (Inst.cnd (Operand.reg rₙ pₙ) lbl) Γ
+notation:50 Ψ " ⊢ᵢ " inst " : " Γ₀ " ↦ " Γ₁ => TyInst Ψ Γ₀ inst Γ₁
+
+/-- Type judgement of basic blocks. -/
+inductive TyBlock : TypeHeap → TypeEnv → BasicBlock → Prop where
+\end{lstlisting}
+\end{minipage}
+
+\newpage
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+  | cons : ∀ {Ψ Γ Γ' i I},
+      (Ψ ⊢ᵢ i : Γ ↦ Γ') →
+      TyBlock Ψ Γ' I →
+      TyBlock Ψ Γ (BasicBlock.cons i I)
+  | jump : ∀ {Ψ Γ Γ' lbl},
+      Proj Ψ lbl.id Γ' →
+      (Γ ⊑ Γ') →
+      TyBlock Ψ Γ (BasicBlock.jump lbl)
+notation:50 Ψ " ⊢ₛ " I " : " Γ => TyBlock Ψ Γ I
+
+/-- Type judgement of the register bank. -/
+inductive TyRegBank : RegisterBank → TypeEnv → Prop where
+  | nil: TyRegBank [] []
+  | cons : ∀ {pₙ R' Γ'},
+      TyRegBank R' Γ' →
+      TyRegBank (Operand.psd pₙ :: R') (Ty.psd pₙ :: Γ')
+notation:50 "⊢ᵣ " R " : " Γ => TyRegBank R Γ
+
+/-- Auxiliary lemma for the code heap type judgement.
+    This is kept for closer similarity to the Twelf code - there are other ways of doing this in Lean. -/
+inductive TyCodeHeapAux : TypeHeap → Program → TypeHeap → Prop where
+  | nil : ∀ {Ψ}, TyCodeHeapAux Ψ [] []
+  | cons : ∀ {Ψ C Γ Ψ'} {I : BasicBlock},
+      (Ψ ⊢ₛ I : Γ) →
+      TyCodeHeapAux Ψ C Ψ' →
+      TyCodeHeapAux Ψ (I :: C) (Γ :: Ψ')
+
+/-- Type judgement of the program (code heap). -/
+inductive TyCodeHeap : TypeHeap → Program → Prop where
+  | mk : ∀ {Ψ C},
+      TyCodeHeapAux Ψ C Ψ →
+      TyCodeHeap Ψ C
+notation:50 "⊢ₕ " C " : " Ψ => TyCodeHeap Ψ C
+\end{lstlisting}
+\end{minipage}
+
+Finally, the type judgement of the machine state, which is the subject of the progress and preservation rules, is the following:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+/-- Type judgement of the machine state. -/
+inductive TyState : Program → State → Prop where
+  | mk : ∀ {Ψ Γ Γ'} {C : Program} {R : RegisterBank} {I : BasicBlock},
+      (⊢ₕ C : Ψ) →
+      (⊢ᵣ R : Γ) →
+      (Ψ ⊢ₛ I : Γ') →
+      (Γ ⊑ Γ') →
+      TyState C (I, R)
+notation:50 "⊢ₘ " "⟨" C ", " s "⟩" => TyState C s
+\end{lstlisting}
+\end{minipage}
+
+\subsection{Proofs}
+
+In our translation, we define and prove an equivalent statement for each theorem stated in the Twelf files. To avoid extending the report further, we show only the statements for the progress and preservation proofs. Notably, proofs in Lean tend to be slightly longer than proofs in Twelf. Although dependent elimination in Lean prunes pattern matching cases in many of the theorems, Twelf's totality checker and terser syntax leads to slightly smaller proofs.
+
+The \textit{progress} theorem states that if we are in a machine state in program \lstinline|C| with basic block \lstinline|I| and register bank \lstinline|R|, then there must always exist another state \lstinline|s'| such that the current state can step into it. Note that there is no termination in the language.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+theorem progress {C : Program} {s : State}
+    (hTy : ⊢ₘ ⟨C, s⟩) :
+    ∃ s', C ⊢ s ⇒ s'
+\end{lstlisting}
+\end{minipage}
+
+The \textit{preservation} theorem states that if we are in a valid machine state \lstinline|⟨C, s₁⟩| and we know that we can step into a state \lstinline|s₂|, then the machine state \lstinline|⟨C, s₂⟩| is also valid.
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+theorem preservation {C : Program} {s₁ s₂ : State}
+    (hTy : ⊢ₘ ⟨C, s₁⟩)
+    (hStep : C ⊢ s₁ ⇒ s₂) :
+    ⊢ₘ ⟨C, s₂⟩
+\end{lstlisting}
+\end{minipage}
+
+
+\section{Conclusion}
+
+In this report, we briefly showed the main parts of translated definitions in Lean 4 from Twelf. Although downloading the full Twelf code and running the proofs was quite easy, I found it very difficult to understand the Twelf definitions and proofs. Twelf's theory is based on LF, while Lean (which I have more experience in) is based on the Calculus of Constructions. Thus, Twelf code takes a logical programming approach, while Lean gravitates towards classical functional programming. One of the hardest parts of Twelf for me is internalizing the inputs and outputs of each proof, which I still find confusing even considering the explicit definition of in and out parameters. I also think that the addition of custom syntax available in Lean makes it easier to understand definitions and proofs. Since the notation used is very similar to the paper, while writing the proofs I was able to look at the paper and more easily understand what was being proved at each point.
+
+Unlike Twelf, our Lean formalization based on inductive propositions does not automatically yield executable semantics or an executable type checker. To achieve executability, we would have to implement computable functions for these and prove their equivalence to the rules we wrote. However, because Lean is a functional language, implementing these functions is straightforward and arguably more extensible than the Twelf code. Furthermore, by utilizing Lean's extensible syntax, we could define custom notation for the AST to fully parse and run the sMIRA language as an embedded domain-specific language (eDSL) in Lean.
+
+For instance, we could write these executable functions and formally prove their equivalence to our inductive theorems, guaranteeing that the runnable eDSL adheres to the sMIRA specification:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+def step (C : Program) (s : State) : Option State := [...]
+
+theorem step_equiv {C : Program} {s1 s2 : State} :
+    (step C s1 = some s2) ↔ (C ⊢ s1 ⇒ s2) := [...]
+
+def checkState (C : Program) (s : State) : Bool := [...]
+
+theorem checkState_equiv {C : Program} {s : State} :
+    checkState C s = true ↔ ⊢ₘ ⟨C, s⟩ := [...]
+\end{lstlisting}
+\end{minipage}
+
+Finally, note that the proofs written in this project are similar to the ones in Twelf. Lean's automation capabilities could reduce much of the proof code, but we want to stay close to the original representation to improve direct comparison between the languages.
+
+\section*{Acknowledgements}
+
+The paper whose artifact was reproduced in this report was presented in a class by Prof. Fernando Magno Quintão Pereira, who is one of its authors. I would like to thank Prof. Fernando for the classes on the subject, and the classes on Twelf. I would also like to disclose the usage of LLMs to help understand some of the Twelf code, as well as to refine some of the Lean definitions and proofs.
+
+
+\printbibliography[
+  title=\refname\label{sec:bib},
+  %title=\bibname\label{sec:bib},
+  % heading=bibintoc,
+]
+
+\end{document}
